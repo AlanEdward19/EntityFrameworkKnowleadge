@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,12 @@ namespace EntityFrameworkKnowleadge.ConsoleApp
 {
     public class funcs
     {
-        private readonly FootballLeagueDbContext _context = new FootballLeagueDbContext();
+        private readonly FootballLeagueDbContext _context;
+
+        public funcs()
+        {
+            _context = new FootballLeagueDbContext();
+        }
 
         public League CriarLeague()
         {
@@ -61,34 +67,133 @@ namespace EntityFrameworkKnowleadge.ConsoleApp
 
         }
 
+        public async void GeneralLeagueSearchWithLinq()
+        {
+            var leagues = await (from league in _context.Leagues select league).ToListAsync();
+
+            foreach (var league in leagues)
+            {
+                league.PrintData();
+            }
+
+        }
+
         public async void GeneralTeamSearch()
         {
-            var teams = await _context.Teams.ToListAsync();
+            var teams = await _context.Teams.Include(teamProperty => teamProperty.League).ToListAsync();
 
             foreach (var team in teams)
             {
-                var league = await _context.Leagues.FirstOrDefaultAsync(league => league.Id == team.Id);
+                team.PrintData();
+            }
+        }
 
-                team.PrintData(league);
+        public async void GeneralTeamSearchWithLinq()
+        {
+            var teams = await (
+                from team in _context.Teams select team)
+                .Include(teamProperty => teamProperty.League).ToListAsync();
+
+            foreach (var team in teams)
+            {
+                team.PrintData();
             }
         }
 
         public async Task<League> NameLeagueSearch(string name)
         {
-            var league = await _context.Leagues.FirstOrDefaultAsync(league => league.Name == name);
+            var league = await _context.Leagues.Where(league => league.Name == name).FirstOrDefaultAsync();
 
             league.PrintData();
 
             return league;
         }
+
+        public async Task<League> NameLeagueSearchWithLinq(string name)
+        {
+            var leagueRef = await (from league in _context.Leagues
+                where league.Name == name
+                select league).FirstOrDefaultAsync();
+
+            leagueRef.PrintData();
+
+            return leagueRef;
+        }
+
         public async Task<Team> NameTeamSearch(string name)
         {
-            var team = await _context.Teams.FirstOrDefaultAsync(team => team.Name == name);
-            var league = await _context.Leagues.FirstOrDefaultAsync(league => league.Id == team.LeagueId);
+            var team = await _context.Teams.Where(team => team.Name == name).Include(teamProperty => teamProperty.League).FirstOrDefaultAsync();
 
-            team.PrintData(league);
+            team.PrintData();
 
             return team;
+        }
+
+        public async Task<Team> NameTeamSearchWithLinq(string name)
+        {
+
+            var teamRef = await (from team in _context.Teams
+                where team.Name == name
+                select team).Include(teamProperty => teamProperty.League).FirstOrDefaultAsync();
+
+            teamRef.PrintData();
+
+            return teamRef;
+        }
+
+        public async void PartialNameLeagueSearch(string name)
+        {
+            var leagues = await _context.Leagues.Where(league => EF.Functions.Like(league.Name, $"%{name}%")).ToListAsync();
+
+            Console.WriteLine($"Ligas que contém a frase : {name}");
+
+            foreach (var league in leagues)
+            {
+                league.PrintData();
+            }
+        }
+
+        public async void PartialNameLeagueSearchWithLinq(string name)
+        {
+            var leaguesRef = await (from leagues in _context.Leagues
+                where EF.Functions.Like(leagues.Name, $"%{name}%")
+                select leagues).ToListAsync();
+
+            Console.WriteLine($"Ligas que contém a frase : {name}");
+
+            foreach (var league in leaguesRef)
+            {
+                league.PrintData();
+            }
+        }
+
+        public async void PartialNameTeamSearch(string name)
+        {
+            var teams = await _context.Teams.Where(team => EF.Functions.Like(team.Name, $"%{name}%"))
+                .Include(teamProperty => teamProperty.League)
+                .ToListAsync();
+
+            Console.WriteLine($"Times que contém a frase : {name}");
+
+            foreach (var team in teams)
+            {
+                team.PrintData();
+            }
+        }
+
+        public async void PartialNameTeamSearchWithLinq(string name)
+        {
+            var teamsRef = await (from teams in _context.Teams
+                                  where EF.Functions.Like(teams.Name, $"%{name}%")
+                                  select teams)
+                .Include(teamProperty => teamProperty.League).ToListAsync();
+
+            Console.WriteLine($"Times que contém a frase : {name}");
+
+            foreach (var team in teamsRef)
+            {
+                team.PrintData();
+            }
         }
 
         public async void SaveChanges()
@@ -120,18 +225,16 @@ namespace EntityFrameworkKnowleadge.ConsoleApp
             Console.WriteLine("Insira o Id da liga que este time pertencerá");
             var leagueID = int.Parse(Console.ReadLine());
 
-            var league = await _context.Leagues.FirstOrDefaultAsync(league => league.Id == teamReference.LeagueId);
 
             Console.WriteLine($"Valores antigos desse time:");
-            teamReference.PrintData(league);
+            teamReference.PrintData();
 
             teamReference.Name = newName;
             teamReference.LeagueId = leagueID;
 
-            league = await _context.Leagues.FirstOrDefaultAsync(league => league.Id == teamReference.LeagueId);
 
             Console.WriteLine($"Novos valores para esse time:");
-            teamReference.PrintData(league);
+            teamReference.PrintData();
 
             _context.Teams.Update(teamReference);
         }
@@ -147,14 +250,91 @@ namespace EntityFrameworkKnowleadge.ConsoleApp
         }
         public async void DeleteTeam(Team teamReference)
         {
-            var league = await _context.Leagues.FirstOrDefaultAsync(league => league.Id == teamReference.LeagueId);
 
             Console.WriteLine($"Valores antigos desse time:");
-            teamReference.PrintData(league);
+            teamReference.PrintData();
 
             Console.WriteLine("Deletando do banco");
 
             _context.Teams.Remove(teamReference);
+        }
+
+        public async Task<List<string>> SelectJustNameOfTeam()
+        {
+            /// <summary>
+            /// Example how to get only one property from a table with Ef Core
+            /// </summary>
+            
+            var teamNames = await _context.Teams.Select(t => t.Name).ToListAsync();
+
+            return teamNames;
+        }
+
+        public async Task<Object> AnonymousProjection()
+        {
+            /// <summary>
+            /// Example how to create an anonymousType objetc, it can't be returned, but may be turned in a object to be returned if needed.
+            /// </summary>
+            var teams = await _context.Teams.Include(q => q.Coach)
+                .Select(q => new
+                {
+                    TeamName = q.Name,
+                    CoachName = q.Coach.Name,
+                }).ToListAsync();
+
+            /*
+             *Observação, poderiamos também criar um metodo tipado (mais adequado inclusive), onde está somente "new", colocariamos o tipo, por exemplo:
+             *
+             * var teams = await _context.Teams.Include(q => q.Coach)
+                .Select(q => new ClasseCriada
+                {
+                    TeamName = q.Name,
+                    CoachName = q.Coach.Name,
+                }).ToListAsync();
+
+            Neste cenário teriamos que criar a "ClasseCriada" antes, porem desta forma saberiamos o que retornaria sempre, diferentemente de uma classe anonima, onde precisamos ver quais campos
+            são retornados no código.
+
+             */
+
+            return teams;
+        }
+
+        public async Task<List<League>> FilteringWithRelatedData(string teamName)
+        {
+            /// <summary>
+            /// Example how to filter on a table based on some info, that table has any related data.
+            /// </summary>
+            
+            var leagues = await _context.Leagues
+                .Where(q => q.Teams.
+                    Any(x => x.Name.Contains(teamName))
+                ).ToListAsync();
+
+            return leagues;
+        }
+
+        public async Task<List<League>> SearchLeagueByNameRawSql(string name)
+        {
+            var league = await _context.Leagues.FromSqlRaw($"select * from league where name = '{name}'").ToListAsync();
+            /* Maneira incorreta, pois desta forma estamos tirando a parametrização, e ficamos suscetíveis a sql injections */
+
+            var league2 = await _context.Leagues.FromSqlRaw("select * from league where name = {0}", name).ToListAsync();
+            /* Maneira correta, pois desta forma estamos inserindo a parametrização*/
+
+            var league3 = await _context.Leagues.FromSqlInterpolated($"select * from league where name = {name}").ToListAsync();
+            /* Outra forma de utilizarmos query SQL, com entity framework, desta forma ele automaticamente parametriza os valores para nós*/
+
+
+            return league;
+        }
+
+        public async Task<List<T>> SearchLeagueBySqlRawNotAllColumns<T>(string name)
+        {
+            var league =
+                 await _context.Database.ExecuteSqlInterpolatedAsync($"select name from league where name = {name}");
+
+            throw new NotImplementedException();
         }
     }
 }

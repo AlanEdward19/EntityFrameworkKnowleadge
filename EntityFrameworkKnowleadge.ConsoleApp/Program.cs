@@ -37,6 +37,7 @@ do
         case 1: // Inserir uma nova liga
             leagueReference = funcs.CriarLeague();
             funcs.insertNewLeague(leagueReference);
+
             break;
 
         case 2: // Inserir um novo time

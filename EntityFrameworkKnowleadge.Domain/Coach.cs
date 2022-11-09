@@ -7,15 +7,10 @@ using EntityFrameworkKnowleadge.Domain.Common;
 
 namespace EntityFrameworkKnowleadge.Domain
 {
-    public class League : BaseDomainObject
+    public class Coach : BaseDomainObject
     {
         public string Name { get; set; }
-        public List<Team> Teams { get; set; }
-
-        public void PrintData()
-        {
-            Console.WriteLine($"Liga com Identificação: {Id}" +
-                              $"\n\t Nome: {Name}");
-        }
+        public int TeamId { get; set; }
+        public virtual Team Team { get; set; }
     }
 }

@@ -19,7 +19,28 @@ namespace EntityFrameworkKnowleadge.Data
                 /*.LogTo(Console.WriteLine, new[] { DbLoggerCategory.Database.Command.Name}, LogLevel.Information)
                 .EnableSensitiveDataLogging()*/;
         }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder) // So é necessário por conta que não está seguindo a nomeclatura correta, na classe Match
+        {
+            modelBuilder.Entity<Team>()
+                .HasMany(m => m.HomeMatches)
+                .WithOne(m => m.HomeTeam)
+                .HasForeignKey(m => m.HomeTeamId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict); /* Um time, tem muitos homeMatches e na tabela Match, esse time, referencia somente um HomeTeam, assim ele consegue assimilar que o HomeTeamId pertence ao Time que está fazendo essa relação
+                                                    * e por convenção, dizemos que quando esse time tentar ser deletado, deve-se apagar todos os registros de matches dele da tabela match, antes de poder proceder com o deletamento desse time.
+                                                    */
+            modelBuilder.Entity<Team>()
+                .HasMany(m => m.AwayMatches)
+                .WithOne(m => m.AwayTeam)
+                .HasForeignKey(m => m.AwayTeamId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+
         public DbSet<Team> Teams { get; set; }
         public DbSet<League> Leagues { get; set; }
+        public DbSet<Match> Matches { get; set; }
+        public DbSet<Coach> Coaches { get; set; }
     }
 }
